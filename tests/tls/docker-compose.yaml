@@ -3,22 +3,45 @@ version: "3.7"
 services:
   qdrant_node_1:
     image: qdrant_tls:latest
-    hostname: node1.qdrant
+    # hostname: node1.qdrant  # Entfernt - Dokploy verwendet Service-Namen für DNS im Netzwerk
     networks:
-      - qdrant
-    command: ./qdrant --uri 'https://node1.qdrant:6335' --config-path config/tls_config.yaml
+      - dokploy-network      # Geändert zum Dokploy-Netzwerk
+    # Befehl angepasst, um Service-Namen statt Hostnamen zu verwenden
+    command: ./qdrant --uri 'https://qdrant_node_1:6335' --config-path config/tls_config.yaml
     volumes:
-    - ./cert:/qdrant/tls
-    - ./tls_config.yaml:/qdrant/config/tls_config.yaml
+      - ./cert:/qdrant/tls
+      - ./tls_config.yaml:/qdrant/config/tls_config.yaml
+    # --- Optionale Traefik Labels (nur wenn externer Zugriff benötigt wird!) ---
+    # labels:
+    #   - "traefik.enable=true"
+    #   # Ersetzen Sie 'qdrant-api.ihre-domain.com' durch Ihre gewünschte Domain/Subdomain
+    #   - "traefik.http.routers.qdrant-node1-http.rule=Host(`qdrant-api.ihre-domain.com`)"
+    #   - "traefik.http.routers.qdrant-node1-http.entrypoints=websecure"
+    #   - "traefik.http.routers.qdrant-node1-http.tls.certresolver=letsencrypt"
+    #   # Ersetzen Sie 6333 durch den tatsächlichen API-Port (oft 6333 oder 6334, NICHT 6335 für die API)
+    #   - "traefik.http.services.qdrant-node1-http.loadbalancer.server.port=6333"
+    #   # Falls Sie gRPC (Port 6333) freigeben möchten, benötigen Sie tcp router
+    #   # - "traefik.tcp.routers.qdrant-node1-grpc.rule=HostSNI(`*`)" # Oder spezifischer HostSNI
+    #   # - "traefik.tcp.routers.qdrant-node1-grpc.entrypoints=websecure"
+    #   # - "traefik.tcp.routers.qdrant-node1-grpc.service=qdrant-node1-grpc"
+    #   # - "traefik.tcp.services.qdrant-node1-grpc.loadbalancer.server.port=6333"
+    #   # - "traefik.tcp.routers.qdrant-node1-grpc.tls.passthrough=false" # Oder true, je nach Setup
+    #   # - "traefik.tcp.routers.qdrant-node1-grpc.tls.certresolver=letsencrypt"
+
   qdrant_node_2:
     image: qdrant_tls:latest
-    hostname: node2.qdrant
+    # hostname: node2.qdrant  # Entfernt
     networks:
-      - qdrant
-    command: bash -c "sleep 5 && ./qdrant --bootstrap 'https://node1.qdrant:6335' --uri 'https://node2.qdrant:6335' --config-path config/tls_config.yaml"
+      - dokploy-network      # Geändert zum Dokploy-Netzwerk
+    # Befehl angepasst, um Service-Namen statt Hostnamen zu verwenden
+    command: bash -c "sleep 5 && ./qdrant --bootstrap 'https://qdrant_node_1:6335' --uri 'https://qdrant_node_2:6335' --config-path config/tls_config.yaml"
     volumes:
-    - ./cert:/qdrant/tls
-    - ./tls_config.yaml:/qdrant/config/tls_config.yaml
+      - ./cert:/qdrant/tls
+      - ./tls_config.yaml:/qdrant/config/tls_config.yaml
+    depends_on: # Hinzugefügt für bessere Startreihenfolge (optional)
+      - qdrant_node_1
 
 networks:
-  qdrant: {}
+  # qdrant: {} # Altes Netzwerk entfernt
+  dokploy-network:  # Dokploy Netzwerkdefinition hinzugefügt
+    external: true
